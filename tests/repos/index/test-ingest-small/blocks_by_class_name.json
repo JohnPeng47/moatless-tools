@@ -1,1 +1,98 @@
-{}
+{
+  "SpanMarker": [
+    [
+      "C:\\Users\\jpeng\\Documents\\projects\\codeRAG\\moatless-tools\\tests\\repos\\test-ingest-small\\codeblocks.py",
+      [
+        "SpanMarker"
+      ]
+    ]
+  ],
+  "CodeBlockTypeGroup": [
+    [
+      "C:\\Users\\jpeng\\Documents\\projects\\codeRAG\\moatless-tools\\tests\\repos\\test-ingest-small\\codeblocks.py",
+      [
+        "CodeBlockTypeGroup"
+      ]
+    ]
+  ],
+  "CodeBlockType": [
+    [
+      "C:\\Users\\jpeng\\Documents\\projects\\codeRAG\\moatless-tools\\tests\\repos\\test-ingest-small\\codeblocks.py",
+      [
+        "CodeBlockType"
+      ]
+    ]
+  ],
+  "PathTree": [
+    [
+      "C:\\Users\\jpeng\\Documents\\projects\\codeRAG\\moatless-tools\\tests\\repos\\test-ingest-small\\codeblocks.py",
+      [
+        "PathTree"
+      ]
+    ]
+  ],
+  "ReferenceScope": [
+    [
+      "C:\\Users\\jpeng\\Documents\\projects\\codeRAG\\moatless-tools\\tests\\repos\\test-ingest-small\\codeblocks.py",
+      [
+        "ReferenceScope"
+      ]
+    ]
+  ],
+  "RelationshipType": [
+    [
+      "C:\\Users\\jpeng\\Documents\\projects\\codeRAG\\moatless-tools\\tests\\repos\\test-ingest-small\\codeblocks.py",
+      [
+        "RelationshipType"
+      ]
+    ]
+  ],
+  "Relationship": [
+    [
+      "C:\\Users\\jpeng\\Documents\\projects\\codeRAG\\moatless-tools\\tests\\repos\\test-ingest-small\\codeblocks.py",
+      [
+        "Relationship"
+      ]
+    ]
+  ],
+  "Parameter": [
+    [
+      "C:\\Users\\jpeng\\Documents\\projects\\codeRAG\\moatless-tools\\tests\\repos\\test-ingest-small\\codeblocks.py",
+      [
+        "Parameter"
+      ]
+    ]
+  ],
+  "SpanType": [
+    [
+      "C:\\Users\\jpeng\\Documents\\projects\\codeRAG\\moatless-tools\\tests\\repos\\test-ingest-small\\codeblocks.py",
+      [
+        "SpanType"
+      ]
+    ]
+  ],
+  "BlockSpan": [
+    [
+      "C:\\Users\\jpeng\\Documents\\projects\\codeRAG\\moatless-tools\\tests\\repos\\test-ingest-small\\codeblocks.py",
+      [
+        "BlockSpan"
+      ]
+    ]
+  ],
+  "ValidationError": [
+    [
+      "C:\\Users\\jpeng\\Documents\\projects\\codeRAG\\moatless-tools\\tests\\repos\\test-ingest-small\\codeblocks.py",
+      [
+        "ValidationError"
+      ]
+    ]
+  ],
+  "CodeBlock": [
+    [
+      "C:\\Users\\jpeng\\Documents\\projects\\codeRAG\\moatless-tools\\tests\\repos\\test-ingest-small\\codeblocks.py",
+      [
+        "CodeBlock"
+      ]
+    ]
+  ]
+}

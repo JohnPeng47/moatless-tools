@@ -5,7 +5,7 @@ from moatless.index.simple_faiss import VectorStoreType
 
 import os
 
-REPO_NAME = "test-summary-small"
+REPO_NAME = "test-ingest-small"
 
 
 def get_code_index(file_repo, persist_dir):
@@ -33,9 +33,13 @@ file_repo = FileRepository(repo_path=repo_dir)
 code_index = get_code_index(file_repo, persist_dir)
 
 workspace = Workspace(file_repo=file_repo, code_index=code_index)
-res = code_index.search("CodeBlocks", store_type=VectorStoreType.SUMMARY)
+res = code_index.search(
+    "What does the _build_path_tree function do?", store_type=VectorStoreType.SUMMARY
+)
 
-print(res)
+for summary, _ in res:
+    print(summary)
+
 # for node in nodes:
 #     print(node)
 #     print(node.metadata)

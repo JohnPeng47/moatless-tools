@@ -575,7 +575,7 @@ class CodeIndex:
         query_bundle = VectorStoreQuery(
             query_str=query,
             query_embedding=query_embedding,
-            similarity_top_k=500,  # TODO: Fix paging?
+            similarity_top_k=3,  # TODO: Fix paging?
             filters=filters,
         )
 
