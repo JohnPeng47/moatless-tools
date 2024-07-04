@@ -60,9 +60,8 @@ class CodeIndex:
         self,
         file_repo: FileRepository,
         to_summarize: bool = False,
+        summaries: List[SummaryNode] = [],
         summary_vector_store: Optional[BasePydanticVectorStore] = None,
-        summary_ref_vars: bool = False,
-        summary_anthropic_model: Optional[bool] = False,
         code_vector_store: Optional[BasePydanticVectorStore] = None,
         docstore: Optional[DocumentStore] = None,
         embed_model: Optional[BaseEmbedding] = None,
@@ -76,9 +75,9 @@ class CodeIndex:
         self._settings = settings or IndexSettings()
 
         self._to_summarize = to_summarize
+        # For Albert: want to type annotate self._summaries but
+        # not sure if best to do it here in definition or elsewhere?
         self._summaries = []
-        self._summary_anthropic_model = summary_anthropic_model
-        self._summary_ref_vars = summary_ref_vars
 
         self.max_results = max_results
         self.max_hits_without_exact_match = max_hits_without_exact_match
@@ -125,8 +124,17 @@ class CodeIndex:
         else:
             blocks_by_function_name = {}
 
+        if os.path.exists(os.path.join(persist_dir, "summaries.json")):
+            with open(os.path.join(persist_dir, "summaries.json"), "r") as f:
+                json_summary = json.loads(f.read())
+                for summary in json_summary:
+                    summaries = SummaryNode(**json.loads(summary))
+        else:
+            summaries = []
+
         return cls(
             file_repo=file_repo,
+            summaries=summaries,
             code_vector_store=code_vector_store,
             summary_vector_store=summary_vector_store,
             docstore=docstore,
@@ -786,11 +794,7 @@ class CodeIndex:
 
         prepared_nodes = splitter.get_nodes_from_documents(docs, show_progress=True)
         if self._to_summarize and not self._summaries:
-            self._summaries = generate_summary(
-                prepared_nodes,
-                anthropic=self._summary_anthropic_model,
-                ref_vars=self._summary_ref_vars,
-            )
+            self._summaries = generate_summary(prepared_nodes)
 
         prepared_tokens = sum(
             [

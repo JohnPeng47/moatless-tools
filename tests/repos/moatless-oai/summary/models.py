@@ -1,7 +1,7 @@
 import logging
 import asyncio
 
-from anthropic import Anthropic, HUMAN_PROMPT, AI_PROMPT
+# from anthropic import Anthropic, HUMAN_PROMPT, AI_PROMPT
 from dataclasses import dataclass, fields
 from openai import BadRequestError, OpenAI, AzureOpenAI
 from simple_parsing.helpers import FrozenSerializable, Serializable
@@ -178,100 +178,6 @@ class BaseModel:
 
     async def query(self, prompt: str) -> str:
         raise NotImplementedError("Use a subclass of BaseModel")
-
-
-class AnthropicModel(BaseModel):
-    MODELS = {
-        "claude-instant": {
-            "max_context": 100_000,
-            "cost_per_input_token": 1.63e-06,
-            "cost_per_output_token": 5.51e-06,
-        },
-        "claude-2.0": {
-            "max_context": 100_000,
-            "cost_per_input_token": 1.102e-05,
-            "cost_per_output_token": 3.268e-05,
-        },
-        "claude-2.1": {
-            "max_context": 100_000,
-            "cost_per_input_token": 1.102e-05,
-            "cost_per_output_token": 3.268e-05,
-        },
-        "claude-3-opus-20240229": {
-            "max_context": 200_000,
-            "max_tokens": 4096,  # Max tokens to generate for Claude 3 models
-            "cost_per_input_token": 1.5e-05,
-            "cost_per_output_token": 7.5e-05,
-        },
-        "claude-3-sonnet-20240229": {
-            "max_context": 200_000,
-            "max_tokens": 4096,
-            "cost_per_input_token": 3e-06,
-            "cost_per_output_token": 1.5e-05,
-        },
-        "claude-3-5-sonnet-20240620": {
-            "max_context": 200_000,
-            "max_tokens": 4096,
-            "cost_per_input_token": 3e-06,
-            "cost_per_output_token": 1.5e-05,
-        },
-        "claude-3-haiku-20240307": {
-            "max_context": 200_000,
-            "max_tokens": 4096,
-            "cost_per_input_token": 2.5e-07,
-            "cost_per_output_token": 1.25e-06,
-        },
-    }
-
-    SHORTCUTS = {
-        "claude-2": "claude-2.1",
-        "claude-opus": "claude-3-opus-20240229",
-        "claude-sonnet": "claude-3-sonnet-20240229",
-        "claude-haiku": "claude-3-haiku-20240307",
-        "claude-sonnet-3.5": "claude-3-5-sonnet-20240620",
-    }
-
-    def __init__(self, args: ModelArguments):
-        super().__init__(args)
-
-        # Set Anthropic key
-        self.api = Anthropic(api_key=args.api_key)
-
-    @retry(
-        wait=wait_random_exponential(min=1, max=15),
-        reraise=True,
-        stop=stop_after_attempt(3),
-        retry=retry_if_not_exception_type((CostLimitExceededError, RuntimeError)),
-    )
-    def query(self, prompt: str) -> str:
-        """
-        Query the Anthropic API with the given `history` and return the response.
-        """
-        return anthropic_query(self, prompt)
-
-    def query_sync(self, prompt: str) -> str:
-        return self.query(prompt)
-
-
-def anthropic_query(model: AnthropicModel, message) -> str:
-    """
-    Query the Anthropic API with the given `history` and return the response.
-    """
-
-    message = {"role": "user", "content": message}
-
-    # Perform Anthropic API call
-    response = model.api.messages.create(
-        messages=[message],
-        max_tokens=model.model_metadata["max_tokens"],
-        model=model.api_model,
-        temperature=model.args.temperature,
-        top_p=model.args.top_p,
-    )
-
-    # Calculate + update costs, return response
-    model.update_stats(response.usage.input_tokens, response.usage.output_tokens)
-    return "\n".join([x.text for x in response.content])
 
 
 class OpenAIModel(BaseModel):

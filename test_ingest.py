@@ -5,7 +5,7 @@ from moatless.index.simple_faiss import VectorStoreType
 
 import os
 
-REPO_NAME = "test-ingest-small"
+REPO_NAME = "test-summary-small-claude"
 
 
 def get_code_index(file_repo, persist_dir):
@@ -18,7 +18,11 @@ def get_code_index(file_repo, persist_dir):
         code_index = CodeIndex.from_persist_dir(persist_dir, file_repo=file_repo)
     else:
         code_index = CodeIndex(
-            file_repo=file_repo, settings=index_settings, to_summarize=True
+            file_repo=file_repo,
+            settings=index_settings,
+            to_summarize=True,
+            summary_anthropic_model=True,
+            summary_ref_vars=False,
         )
         nodes = code_index.run_ingestion()
         code_index.persist(persist_dir)
