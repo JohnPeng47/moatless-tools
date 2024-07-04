@@ -1,19 +1,17 @@
 from moatless.index import CodeIndex, IndexSettings
 from moatless import FileRepository
+from moatless.workspace import Workspace
+from moatless.index.simple_faiss import VectorStoreType
 
 import os
 
 REPO_NAME = "test-summary-small"
 
 
-def get_code_index():
+def get_code_index(file_repo, persist_dir):
     # An OPENAI_API_KEY is required to use the OpenAI Models
     model = "gpt-4o-2024-05-13"
     index_settings = IndexSettings(embed_model="text-embedding-3-small")
-
-    repo_dir = f"tests/repos/{REPO_NAME}"
-    persist_dir = f"tests/repos/index/{REPO_NAME}"
-    file_repo = FileRepository(repo_path=repo_dir)
 
     if os.path.exists(persist_dir) and os.listdir(persist_dir):
         print("Load from disk")
@@ -28,9 +26,16 @@ def get_code_index():
     return code_index
 
 
-code_index = get_code_index()
+persist_dir = f"tests/repos/index/{REPO_NAME}"
+repo_dir = f"tests/repos/{REPO_NAME}"
+file_repo = FileRepository(repo_path=repo_dir)
 
+code_index = get_code_index(file_repo, persist_dir)
 
+workspace = Workspace(file_repo=file_repo, code_index=code_index)
+res = code_index.search("CodeBlocks", store_type=VectorStoreType.SUMMARY)
+
+print(res)
 # for node in nodes:
 #     print(node)
 #     print(node.metadata)
@@ -39,8 +44,6 @@ code_index = get_code_index()
 
 # code_index.persist(persist_dir)
 
-# workspace = Workspace(file_repo=file_repo, code_index=code_index)
-# res = code_index.search("Refactor Task to use a celery task implementation?")
 # file_context = workspace.create_file_context(files_with_spans=res.hits)
 # for hit in res.hits:
 #     for span in hit.spans:

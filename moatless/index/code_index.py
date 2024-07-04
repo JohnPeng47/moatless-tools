@@ -190,9 +190,13 @@ class CodeIndex:
         code_snippet: Optional[str] = None,
         class_names: List[str] = None,
         function_names: List[str] = None,
+        store_type: VectorStoreType = VectorStoreType.CODE,
         file_pattern: Optional[str] = None,
         max_results: int = 25,
     ) -> SearchCodeResponse:
+
+        if store_type == VectorStoreType.SUMMARY:
+            return self._vector_search_summaries(query)
 
         if class_names or function_names:
             result = self.find_by_name(
@@ -562,6 +566,25 @@ class CodeIndex:
         for span_id in file.span_ids:
             file_hit.add_span(span_id, rank)
         return file_hit
+
+    def _vector_search_summaries(self, query: str = ""):
+        query_embedding = self._embed_model.get_query_embedding(query)
+
+        filters = MetadataFilters(filters=[], condition=FilterCondition.AND)
+
+        query_bundle = VectorStoreQuery(
+            query_str=query,
+            query_embedding=query_embedding,
+            similarity_top_k=500,  # TODO: Fix paging?
+            filters=filters,
+        )
+
+        result = self._summary_vector_store.query(query_bundle)
+
+        return [
+            (self._docstore.get_document(node_id), dist)
+            for node_id, dist in zip(result.ids, result.similarities)
+        ]
 
     def _vector_search(
         self,
