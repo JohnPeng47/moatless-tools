@@ -8,6 +8,7 @@ import tempfile
 from typing import List, Dict, Optional
 
 import requests
+
 from llama_index.core import SimpleDirectoryReader
 from llama_index.core.base.embeddings.base import BaseEmbedding
 from llama_index.core.ingestion import IngestionPipeline, DocstoreStrategy
@@ -26,7 +27,7 @@ from moatless.codeblocks import CodeBlock, CodeBlockType
 from moatless.index.embed_model import get_embed_model
 from moatless.index.epic_split import EpicSplitter
 from moatless.index.settings import IndexSettings
-from moatless.index.simple_faiss import SimpleFaissVectorStore
+from moatless.index.simple_faiss import SimpleFaissVectorStore, VectorStoreType
 from moatless.index.types import (
     CodeSnippet,
     SearchCodeResponse,
@@ -35,6 +36,8 @@ from moatless.index.types import (
 from moatless.repository import FileRepository
 from moatless.types import FileWithSpans
 from moatless.utils.tokenizer import count_tokens
+
+from moatless.summary import SummaryNode, generate_summary
 
 logger = logging.getLogger(__name__)
 
@@ -56,7 +59,10 @@ class CodeIndex:
     def __init__(
         self,
         file_repo: FileRepository,
-        vector_store: Optional[BasePydanticVectorStore] = None,
+        to_summarize: bool = False,
+        summaries: List[SummaryNode] = [],
+        summary_vector_store: Optional[BasePydanticVectorStore] = None,
+        code_vector_store: Optional[BasePydanticVectorStore] = None,
         docstore: Optional[DocumentStore] = None,
         embed_model: Optional[BaseEmbedding] = None,
         blocks_by_class_name: Optional[dict] = None,
@@ -68,6 +74,11 @@ class CodeIndex:
     ):
         self._settings = settings or IndexSettings()
 
+        self._to_summarize = to_summarize
+        # For Albert: want to type annotate self._summaries but
+        # not sure if best to do it here in definition or elsewhere?
+        self._summaries = []
+
         self.max_results = max_results
         self.max_hits_without_exact_match = max_hits_without_exact_match
         self.max_exact_results = max_exact_results
@@ -78,12 +89,23 @@ class CodeIndex:
         self._blocks_by_function_name = blocks_by_function_name or {}
 
         self._embed_model = embed_model or get_embed_model(self._settings.embed_model)
-        self._vector_store = vector_store or default_vector_store(self._settings)
+        self._code_vector_store = code_vector_store or default_vector_store(
+            self._settings
+        )
+        self._summary_vector_store = summary_vector_store or default_vector_store(
+            self._settings
+        )
         self._docstore = docstore or SimpleDocumentStore()
 
     @classmethod
     def from_persist_dir(cls, persist_dir: str, file_repo: FileRepository, **kwargs):
-        vector_store = SimpleFaissVectorStore.from_persist_dir(persist_dir)
+        code_vector_store = SimpleFaissVectorStore.from_persist_dir(
+            persist_dir, VectorStoreType.CODE
+        )
+        summary_vector_store = SimpleFaissVectorStore.from_persist_dir(
+            persist_dir, VectorStoreType.SUMMARY
+        )
+
         docstore = SimpleDocumentStore.from_persist_dir(persist_dir)
 
         settings = IndexSettings.from_persist_dir(persist_dir)
@@ -102,9 +124,19 @@ class CodeIndex:
         else:
             blocks_by_function_name = {}
 
+        if os.path.exists(os.path.join(persist_dir, "summaries.json")):
+            with open(os.path.join(persist_dir, "summaries.json"), "r") as f:
+                json_summary = json.loads(f.read())
+                for summary in json_summary:
+                    summaries = SummaryNode(**json.loads(summary))
+        else:
+            summaries = []
+
         return cls(
             file_repo=file_repo,
-            vector_store=vector_store,
+            summaries=summaries,
+            code_vector_store=code_vector_store,
+            summary_vector_store=summary_vector_store,
             docstore=docstore,
             settings=settings,
             blocks_by_class_name=blocks_by_class_name,
@@ -134,7 +166,7 @@ class CodeIndex:
             logger.exception(f"Failed to download {url}")
             raise e
 
-        logger.info(f"Downloaded existing index from {url}.")
+        print(f"Downloaded existing index from {url}.")
 
         vector_store = SimpleFaissVectorStore.from_persist_dir(persist_dir)
         docstore = SimpleDocumentStore.from_persist_dir(persist_dir)
@@ -239,7 +271,7 @@ class CodeIndex:
             ]
 
             if not matching_files:
-                logger.info(
+                print(
                     f"semantic_search() No files found for file pattern {file_pattern}. Will search all files..."
                 )
                 message += f"No files found for file pattern {file_pattern}. Will search all files.\n"
@@ -347,17 +379,17 @@ class CodeIndex:
         span_count = sum([len(file.spans) for file in files_with_spans.values()])
 
         if class_names or function_names:
-            logger.info(
+            print(
                 f"semantic_search() Filtered out {filtered_out} spans by class names {class_names} and function names {function_names}."
             )
 
         if require_exact_query_match:
-            logger.info(
+            print(
                 f"semantic_search() Found {spans_with_exact_query_match} code spans with exact match out of {span_count} spans."
             )
             message = f"Found {spans_with_exact_query_match} code spans with code that matches the exact query `{query}`."
         else:
-            logger.info(
+            print(
                 f"semantic_search() Found {span_count} code spans in {len(files_with_spans.values())} files."
             )
             message = f"Found {span_count} code spans."
@@ -388,7 +420,7 @@ class CodeIndex:
             for class_name in class_names:
                 paths.extend(self._blocks_by_class_name.get(class_name, []))
 
-        logger.info(
+        print(
             f"find_by_name(class_name={class_names}, function_name={function_names}, file_pattern={file_pattern}) {len(paths)} hits."
         )
 
@@ -412,7 +444,7 @@ class CodeIndex:
 
             filtered_out_test_files = len(paths) - len(filtered_paths)
             if filtered_out_test_files > 0:
-                logger.info(
+                print(
                     f"find_by_name() Filtered out {filtered_out_test_files} test files."
                 )
 
@@ -430,12 +462,12 @@ class CodeIndex:
 
                 filtered_out_by_file_pattern = len(paths) - len(filtered_paths)
                 if filtered_paths:
-                    logger.info(
+                    print(
                         f"find_by_name() Filtered out {filtered_out_by_file_pattern} files by file pattern."
                     )
                     paths = filtered_paths
                 else:
-                    logger.info(
+                    print(
                         f"find_by_name() No files found for file pattern {file_pattern}. Will search all files..."
                     )
                     check_all_files = True
@@ -481,14 +513,12 @@ class CodeIndex:
                         )
 
         if filtered_out_by_class_name > 0:
-            logger.info(
+            print(
                 f"find_by_function_name() Filtered out {filtered_out_by_class_name} functions by class name {class_name}."
             )
 
         if invalid_blocks > 0:
-            logger.info(
-                f"find_by_function_name() Ignored {invalid_blocks} invalid blocks."
-            )
+            print(f"find_by_function_name() Ignored {invalid_blocks} invalid blocks.")
 
         if check_all_files and len(files_with_spans) > 0:
             message = f"The file pattern {file_pattern} didn't match any files. But I found {len(files_with_spans)} matches in other files."
@@ -552,7 +582,7 @@ class CodeIndex:
                 "At least one of query, span_keywords or content_keywords must be provided."
             )
 
-        logger.info(
+        print(
             f"vector_search() Searching for query [{query[:50]}...] and file pattern [{file_pattern}]."
         )
 
@@ -569,7 +599,7 @@ class CodeIndex:
             filters=filters,
         )
 
-        result = self._vector_store.query(query_bundle)
+        result = self._code_vector_store.query(query_bundle)
 
         filtered_out_snippets = 0
         ignored_removed_snippets = 0
@@ -580,7 +610,7 @@ class CodeIndex:
         if file_pattern:
             include_files = self._file_repo.matching_files(file_pattern)
             if len(include_files) == 0:
-                logger.info(
+                print(
                     f"vector_search() No files found for file pattern {file_pattern}, return empty result..."
                 )
                 return []
@@ -643,7 +673,7 @@ class CodeIndex:
 
         # TODO: Rerank by file pattern if no exact matches on file pattern
 
-        logger.info(
+        print(
             f"vector_search() Returning {len(search_results)} search results. "
             f"(Ignored {ignored_removed_snippets} removed search results. "
             f"Filtered out {filtered_out_snippets} search results.)"
@@ -694,15 +724,22 @@ class CodeIndex:
             recursive=True,
         )
 
-        embed_pipeline = IngestionPipeline(
+        code_embed_pipeline = IngestionPipeline(
             transformations=[self._embed_model],
             docstore_strategy=DocstoreStrategy.UPSERTS_AND_DELETE,
             docstore=self._docstore,
-            vector_store=self._vector_store,
+            vector_store=self._code_vector_store,
         )
+        if self._to_summarize:
+            summaries_embed_pipeline = IngestionPipeline(
+                transformations=[self._embed_model],
+                docstore_strategy=DocstoreStrategy.UPSERTS_AND_DELETE,
+                docstore=self._docstore,
+                vector_store=self._summary_vector_store,
+            )
 
         docs = reader.load_data()
-        logger.info(f"Read {len(docs)} documents")
+        print(f"Read {len(docs)} documents")
 
         blocks_by_class_name = {}
         blocks_by_function_name = {}
@@ -733,17 +770,18 @@ class CodeIndex:
         )
 
         prepared_nodes = splitter.get_nodes_from_documents(docs, show_progress=True)
+        if self._to_summarize and not self._summaries:
+            self._summaries = generate_summary(prepared_nodes)
+
         prepared_tokens = sum(
             [
                 count_tokens(node.get_content(), self._settings.embed_model)
                 for node in prepared_nodes
             ]
         )
-        logger.info(
-            f"Prepared {len(prepared_nodes)} nodes and {prepared_tokens} tokens"
-        )
+        print(f"Prepared {len(prepared_nodes)} nodes and {prepared_tokens} tokens")
 
-        embedded_nodes = embed_pipeline.run(
+        embedded_nodes = code_embed_pipeline.run(
             nodes=list(prepared_nodes), show_progress=True, num_workers=num_workers
         )
         embedded_tokens = sum(
@@ -752,9 +790,13 @@ class CodeIndex:
                 for node in embedded_nodes
             ]
         )
-        logger.info(
-            f"Embedded {len(embedded_nodes)} vectors with {embedded_tokens} tokens"
-        )
+        print(f"Embedded {len(embedded_nodes)} vectors with {embedded_tokens} tokens")
+
+        if self._to_summarize:
+            embedded_summaries = summaries_embed_pipeline.run(
+                nodes=self._summaries, show_progress=True, num_workers=num_workers
+            )
+            print(f"Embedded {len(embedded_summaries)} summaries.")
 
         self._blocks_by_class_name = blocks_by_class_name
         self._blocks_by_function_name = blocks_by_function_name
@@ -762,7 +804,8 @@ class CodeIndex:
         return len(embedded_nodes), embedded_tokens
 
     def persist(self, persist_dir: str):
-        self._vector_store.persist(persist_dir)
+        self._code_vector_store.persist(persist_dir, VectorStoreType.CODE)
+        self._summary_vector_store.persist(persist_dir, VectorStoreType.SUMMARY)
         self._docstore.persist(
             os.path.join(persist_dir, docstore.types.DEFAULT_PERSIST_FNAME)
         )
@@ -773,6 +816,11 @@ class CodeIndex:
 
         with open(os.path.join(persist_dir, "blocks_by_function_name.json"), "w") as f:
             f.write(json.dumps(self._blocks_by_function_name, indent=2))
+
+        with open(os.path.join(persist_dir, "summaries.json"), "w") as f:
+            f.write(
+                json.dumps([summary.json() for summary in self._summaries], indent=2)
+            )
 
 
 def _rerank_files(file_paths: List[str], file_pattern: str):
@@ -793,7 +841,7 @@ def _rerank_files(file_paths: List[str], file_pattern: str):
 
     sorted_file_paths = [file for file, score in scored_files]
 
-    logger.info(
+    print(
         f"rerank_files() Reranked {len(file_paths)} files with query {tokenized_query}. First hit {sorted_file_paths[0]}"
     )
 

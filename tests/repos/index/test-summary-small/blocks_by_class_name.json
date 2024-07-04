@@ -1,0 +1,26 @@
+{
+  "SpanMarker": [
+    [
+      "C:\\Users\\jpeng\\Documents\\projects\\codeRAG\\moatless-tools\\tests\\repos\\test-summary-small\\test.py",
+      [
+        "SpanMarker"
+      ]
+    ]
+  ],
+  "CodeBlockTypeGroup": [
+    [
+      "C:\\Users\\jpeng\\Documents\\projects\\codeRAG\\moatless-tools\\tests\\repos\\test-summary-small\\test.py",
+      [
+        "CodeBlockTypeGroup"
+      ]
+    ]
+  ],
+  "CodeBlockType": [
+    [
+      "C:\\Users\\jpeng\\Documents\\projects\\codeRAG\\moatless-tools\\tests\\repos\\test-summary-small\\test.py",
+      [
+        "CodeBlockType"
+      ]
+    ]
+  ]
+}

@@ -148,12 +148,12 @@ class EpicSplitter(NodeParser):
 
                 parse_time = time.time_ns() - starttime
                 if parse_time > 1e9:
-                    logger.warning(
+                    print(
                         f"Parsing file {file_path} took {parse_time / 1e9:.2f} seconds."
                     )
 
             except Exception as e:
-                logger.warning(
+                print(
                     f"Failed to use epic splitter to split {file_path}. Fallback to treesitter_split(). Error: {e}"
                 )
                 # TODO: Fall back to treesitter or text split
@@ -163,7 +163,7 @@ class EpicSplitter(NodeParser):
             chunks = self._chunk_contents(codeblock=codeblock, file_path=file_path)
             parse_time = time.time_ns() - starttime
             if parse_time > 1e8:
-                logger.warning(
+                print(
                     f"Splitting file {file_path} took {parse_time / 1e9:.2f} seconds."
                 )
             if len(chunks) > 100:
@@ -178,7 +178,7 @@ class EpicSplitter(NodeParser):
                     all_nodes.append(chunk_node)
             parse_time = time.time_ns() - starttime
             if parse_time > 1e9:
-                logger.warning(
+                print(
                     f"Create nodes for file {file_path} took {parse_time / 1e9:.2f} seconds."
                 )
         return all_nodes
@@ -192,7 +192,7 @@ class EpicSplitter(NodeParser):
             return []
 
         if codeblock.find_errors():
-            logger.warning(
+            print(
                 f"Failed to use spic splitter to split {file_path}. {len(codeblock.find_errors())} codeblocks with type ERROR. Fallback to treesitter_split()"
             )
             # TODO: Fall back to treesitter or text split
@@ -245,7 +245,7 @@ class EpicSplitter(NodeParser):
             else:
                 if child.tokens > self.max_chunk_size:
                     start_content = child.content[:100]
-                    logger.warning(
+                    print(
                         f"Skipping code block {child.path_string()} in {file_path} as it has {child.tokens} tokens which is"
                         f" more than chunk size {self.chunk_size}. Content: {start_content}..."
                     )

@@ -3,6 +3,7 @@
 import json
 import logging
 import os
+from enum import Enum
 from dataclasses import dataclass, field
 from typing import Any, Dict, List, Optional, cast, Set
 
@@ -30,6 +31,12 @@ LEARNER_MODES = {
     VectorStoreQueryMode.LINEAR_REGRESSION,
     VectorStoreQueryMode.LOGISTIC_REGRESSION,
 }
+
+
+class VectorStoreType(str, Enum):
+    CODE = "code"
+    SUMMARY = "summary"
+
 
 MMR_MODE = VectorStoreQueryMode.MMR
 
@@ -219,6 +226,7 @@ class SimpleFaissVectorStore(BasePydanticVectorStore):
     def persist(
         self,
         persist_dir: str = DEFAULT_PERSIST_DIR,
+        store_type: VectorStoreType = VectorStoreType.CODE,
         fs: Optional[fsspec.AbstractFileSystem] = None,
     ) -> None:
         """Persist the SimpleVectorStore to a directory."""
@@ -245,7 +253,9 @@ class SimpleFaissVectorStore(BasePydanticVectorStore):
                 if self._data.metadata_dict is not None:
                     self._data.metadata_dict.pop(text_id, None)
 
-        faiss.write_index(self._faiss_index, f"{persist_dir}/vector_index.faiss")
+        faiss.write_index(
+            self._faiss_index, f"{persist_dir}/vector_index_{store_type}.faiss"
+        )
 
         for vector_id in self._vector_ids_to_delete:
             text_id = self._data.vector_id_to_text_id.pop(vector_id, None)
@@ -254,12 +264,15 @@ class SimpleFaissVectorStore(BasePydanticVectorStore):
 
         self._vector_ids_to_delete = []
 
-        with fs.open(f"{persist_dir}/vector_index.json", "w") as f:
+        with fs.open(f"{persist_dir}/vector_index_{store_type}.json", "w") as f:
             json.dump(self._data.to_dict(), f)
 
     @classmethod
     def from_persist_dir(
-        cls, persist_dir: str, fs: Optional[fsspec.AbstractFileSystem] = None
+        cls,
+        persist_dir: str,
+        store_type: VectorStoreType,
+        fs: Optional[fsspec.AbstractFileSystem] = None,
     ) -> "SimpleFaissVectorStore":
         """Create a SimpleKVStore from a persist directory."""
 
@@ -267,15 +280,21 @@ class SimpleFaissVectorStore(BasePydanticVectorStore):
         if not fs.exists(persist_dir):
             raise ValueError(f"No existing index store found at {persist_dir}.")
 
+        index_path = f"{persist_dir}/vector_index_{store_type}.faiss"
+        data_path = f"{persist_dir}/vector_index_{store_type}.json"
+        if not fs.exists(index_path) or not fs.exists(data_path):
+            logger.warning(f"No existing index store found for type::{store_type}")
+            return None
+
         # I don't think FAISS supports fsspec, it requires a path in the SWIG interface
         # TODO: copy to a temp file and load into memory from there
         if fs and not isinstance(fs, LocalFileSystem):
             raise NotImplementedError("FAISS only supports local storage for now.")
 
-        faiss_index = faiss.read_index(f"{persist_dir}/vector_index.faiss")
+        faiss_index = faiss.read_index(f"{persist_dir}/vector_index_{store_type}.faiss")
 
         logger.debug(f"Loading {__name__} from {persist_dir}.")
-        with fs.open(f"{persist_dir}/vector_index.json", "rb") as f:
+        with fs.open(f"{persist_dir}/vector_index_{store_type}.json", "rb") as f:
             data_dict = json.load(f)
             data = SimpleVectorStoreData.from_dict(data_dict)
 
