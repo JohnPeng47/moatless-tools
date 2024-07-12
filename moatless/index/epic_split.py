@@ -14,7 +14,7 @@ from moatless.codeblocks.parser.python import PythonParser
 from moatless.index.code_node import CodeNode
 from moatless.index.settings import CommentStrategy
 
-from scope_graph.build_scopes import build_scope_graph
+from scope_graph.chunk_resolution import ChunkGraph
 
 CodeBlockChunk = List[CodeBlock]
 
@@ -79,6 +79,8 @@ class EpicSplitter(NodeParser):
     index_callback: Optional[Callable] = Field(
         default=None, description="Callback to call when indexing a code block."
     )
+
+    chunk_graph: ChunkGraph = None
 
     # _fallback_code_splitter: Optional[TextSplitter] = PrivateAttr() TODO: Implement fallback when tree sitter fails
 
@@ -462,7 +464,6 @@ class EpicSplitter(NodeParser):
     def _create_node(
         self, content: str, node: BaseNode, chunk: Optional[CodeBlockChunk] = None
     ) -> Optional[TextNode]:
-        print("Creating node!!!")
         metadata = {}
         metadata.update(node.metadata)
 

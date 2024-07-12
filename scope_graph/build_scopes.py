@@ -165,6 +165,17 @@ class ScopeGraph:
             ]
         )
 
+    def scopes_by_range(self, range: TextRange, overlap=False) -> Iterator[ScopeID]:
+        """
+        Get all scopes that contain the given range
+        """
+        return (
+            u
+            for u, attrs in self._graph.nodes(data=True)
+            if attrs["type"] == NodeKind.SCOPE
+            and self.get_node(u).range.contains_line(range, overlap=overlap)
+        )
+
     def imports(self, start: int) -> Iterator[int]:
         """
         Get all imports in the scope

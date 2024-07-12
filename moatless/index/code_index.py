@@ -5,6 +5,7 @@ import mimetypes
 import os
 import shutil
 import tempfile
+from pathlib import Path
 from typing import List, Dict, Optional
 
 import requests
@@ -38,6 +39,8 @@ from moatless.types import FileWithSpans
 from moatless.utils.tokenizer import count_tokens
 
 from moatless.summary import SummaryNode, generate_summary
+
+from scope_graph.chunk_resolution.chunk_graph import ChunkGraph
 
 logger = logging.getLogger(__name__)
 
@@ -739,9 +742,6 @@ class CodeIndex:
             recursive=True,
         )
 
-        # construct the repo graph here:
-        # repo_graph = RepoGraph.from_repo_path(repo_path)
-
         code_embed_pipeline = IngestionPipeline(
             transformations=[self._embed_model],
             docstore_strategy=DocstoreStrategy.UPSERTS_AND_DELETE,
@@ -788,6 +788,12 @@ class CodeIndex:
         )
 
         prepared_nodes = splitter.get_nodes_from_documents(docs, show_progress=True)
+
+        # create graph with with refs
+        chunk_graph = ChunkGraph(Path(repo_path), prepared_nodes)
+        # returns nodes with edges metadata
+        prepared_nodes = chunk_graph.get_modified_chunks()
+
         if self._to_summarize and not self._summaries:
             self._summaries = generate_summary(
                 prepared_nodes,
