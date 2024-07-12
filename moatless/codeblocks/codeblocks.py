@@ -336,7 +336,7 @@ class CodeBlock(BaseModel):
         for child in self.children:
             child.parent = self
 
-        if self.pre_code and not re.match(r"^[ \n\\]*$", self.pre_code):
+        if self.pre_code and not re.match(r"^[ \n\\\r\n]*$", self.pre_code):
             raise ValueError(
                 f"Failed to parse code block with type {self.type} and content `{self.content}`. "
                 f"Expected pre_code to only contain spaces and line breaks. Got `{self.pre_code}`"

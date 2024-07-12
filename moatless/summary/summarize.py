@@ -1,9 +1,8 @@
-from pydantic import BaseModel
 from typing import Dict, Any, List
 
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from dotenv import load_dotenv
 import os
-import anthropic
 
 
 from llama_index.core.schema import TextNode
@@ -52,19 +51,34 @@ def generate_summary(nodes: List[CodeNode], anthropic=False, ref_vars=False):
         )
     )
     prompt = SUMMARIZE_PROMPT_REF_VARS if ref_vars else SUMMARIZE_PROMPT_HIGHLEVEL
-
     summary_nodes = []
 
-    for node in nodes:
-        print(f"Summarizing: {node.text}")
-
+    def summarize_node(node):
+        print(f"Summarizing node: {node.node_id}")
         res = model.query_sync(prompt.format(code_id=node.node_id, code=node.text))
-        print("Generated: ", res)
+        return res, node
 
+    for node in nodes:
+        res, node = summarize_node(node)
         metadata = node.metadata.copy()
-        # store a refernce back to original CodeNode
         metadata["node_id"] = node.node_id
+        summary_nodes.append(SummaryNode(text=res, metadata=metadata))
 
-        summary_nodes.append(SummaryNode(text=res, metadata=node.metadata))
+    # for node in nodes:
+
+    #     def summarize_node(node):
+    #         print(f"Summarizing node: {node.node_id}")
+    #         res = model.query_sync(prompt.format(code_id=node.node_id, code=node.text))
+    #         return res, node
+
+    #     with ThreadPoolExecutor(max_workers=5) as executor:
+    #         future_to_node = {
+    #             executor.submit(summarize_node, node): node for node in nodes
+    #         }
+    #         for future in as_completed(future_to_node):
+    #             res, node = future.result()
+    #             metadata = node.metadata.copy()
+    #             metadata["node_id"] = node.node_id
+    #             summary_nodes.append(SummaryNode(text=res, metadata=metadata))
 
     return summary_nodes

@@ -739,6 +739,9 @@ class CodeIndex:
             recursive=True,
         )
 
+        # construct the repo graph here:
+        # repo_graph = RepoGraph.from_repo_path(repo_path)
+
         code_embed_pipeline = IngestionPipeline(
             transformations=[self._embed_model],
             docstore_strategy=DocstoreStrategy.UPSERTS_AND_DELETE,

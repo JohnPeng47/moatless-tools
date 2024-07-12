@@ -14,6 +14,8 @@ from moatless.codeblocks.parser.python import PythonParser
 from moatless.index.code_node import CodeNode
 from moatless.index.settings import CommentStrategy
 
+from scope_graph.build_scopes import build_scope_graph
+
 CodeBlockChunk = List[CodeBlock]
 
 
@@ -218,6 +220,7 @@ class EpicSplitter(NodeParser):
 
         return self._chunk_block(codeblock, file_path)
 
+    # get start and end line from codeblock
     def _chunk_block(
         self, codeblock: CodeBlock, file_path: Optional[str] = None
     ) -> list[CodeBlockChunk]:
@@ -459,6 +462,7 @@ class EpicSplitter(NodeParser):
     def _create_node(
         self, content: str, node: BaseNode, chunk: Optional[CodeBlockChunk] = None
     ) -> Optional[TextNode]:
+        print("Creating node!!!")
         metadata = {}
         metadata.update(node.metadata)
 

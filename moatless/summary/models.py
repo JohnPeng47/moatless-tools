@@ -1,7 +1,7 @@
 import logging
 import asyncio
 
-from anthropic import Anthropic, HUMAN_PROMPT, AI_PROMPT
+from anthropic import Anthropic, RateLimitError
 from dataclasses import dataclass, fields
 from openai import BadRequestError, OpenAI, AzureOpenAI
 from simple_parsing.helpers import FrozenSerializable, Serializable
@@ -240,8 +240,8 @@ class AnthropicModel(BaseModel):
     @retry(
         wait=wait_random_exponential(min=1, max=15),
         reraise=True,
-        stop=stop_after_attempt(3),
-        retry=retry_if_not_exception_type((CostLimitExceededError, RuntimeError)),
+        stop=stop_after_attempt(15),
+        retry=retry_if_not_exception_type((RateLimitError,)),
     )
     def query(self, prompt: str) -> str:
         """
