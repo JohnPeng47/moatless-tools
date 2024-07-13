@@ -7,7 +7,7 @@ from moatless.summary.models import num_tokens_from_string
 
 import os
 
-REPO_NAME = "test-ingest-small-oai"
+REPO_NAME = "test-import-ref"
 query = """Codeblocks for imports statements. External references"""
 
 print("Query: ", query)

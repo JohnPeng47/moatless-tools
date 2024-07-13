@@ -9,9 +9,6 @@ from scope_graph.fs import RepoFs
 from scope_graph.utils import SysModules, ThirdPartyModules
 
 
-from scope_graph.config import LANGUAGE
-
-
 class ModuleType(str, Enum):
     # a local package
     LOCAL = "local"
@@ -22,13 +19,27 @@ class ModuleType(str, Enum):
     UNKNOWN = "unknown"
 
 
+@dataclass
+class Import:
+    """
+    This represents a single Import that is the result of joining
+    from_name and names in LocalImportStmt
+    """
+
+    namespace: NameSpace
+    module_type: ModuleType
+    filepath: Path
+    # only for ModuleType.LOCAL
+    import_path: Optional[Path] = None
+
+
 def import_stmt_to_import(
     import_stmt: LocalImportStmt,
     filepath: Path,
     fs: RepoFs,
     sys_modules: SysModules,
     third_party_modules: ThirdPartyModules,
-) -> Dict[NameSpace, ModuleType]:
+) -> List[Import]:
     """
     Convert an import statement, which may hold multiple imports
     """
@@ -61,18 +72,5 @@ def import_stmt_to_import(
             module_type = ModuleType.UNKNOWN
 
         imports.append(Import(ns, module_type, filepath, import_path=import_path))
+
     return imports
-
-
-@dataclass
-class Import:
-    """
-    This represents a single Import that is the result of joining
-    from_name and names in LocalImportStmt
-    """
-
-    namespace: NameSpace
-    module_type: ModuleType
-    filepath: Path
-    # only for ModuleType.LOCAL
-    import_path: Optional[Path] = None

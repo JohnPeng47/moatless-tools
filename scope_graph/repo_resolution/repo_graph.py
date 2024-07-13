@@ -1,5 +1,6 @@
 from typing import Any, List, Dict
 from pathlib import Path
+from collections import defaultdict
 
 from scope_graph.fs import RepoFs
 from scope_graph.build_scopes import ScopeGraph, build_scope_graph, ScopeID
@@ -31,9 +32,6 @@ class RepoGraph:
         # map the chunks from Moatless
         # self.scope_chunk_map: Dict[ScopeList, Chunk]
 
-    def get_scope_range(self, file: Path, range: TextRange) -> List[ScopeID]:
-        return self.scopes_map[file].scopes_by_range(range, overlap=True)
-
     # TODO: add some sort of hierarchal structure to the scopes?
     def construct_scopes(self, fs: RepoFs) -> Dict[Path, ScopeGraph]:
         """
@@ -59,14 +57,13 @@ class RepoGraph:
         # lists for checking if python module is system or third party
         sys_modules_list = SysModules(LANGUAGE)
         third_party_modules_list = ThirdPartyModules(LANGUAGE)
-
-        import_map = {}
+        import_map = defaultdict(list)
 
         for file, scope_graph in scopes.items():
             imports = self.get_imports(
                 scope_graph, file, fs, sys_modules_list, third_party_modules_list
             )
-            import_map[file] = imports
+            import_map[file].extend(imports)
 
         return import_map
 
